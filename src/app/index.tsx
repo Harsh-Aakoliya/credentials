@@ -16,7 +16,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CredentialStorage, Credential, AddCredential } from "@/utils/Storage";
 import { useEffect, useMemo, useRef, useState } from "react";
-import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 
 if (
@@ -91,13 +90,10 @@ export default function Index() {
   const [formKey, setFormKey] = useState<string>("");
   const [formValue, setFormValue] = useState<string>("");
   const [formCategory, setFormCategory] = useState<string>("");
-  const [formValueVisible, setFormValueVisible] = useState<boolean>(false);
 
   const [modalVisible, setModalVisible] = useState<boolean>(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
-  const [revealedId, setRevealedId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const { show: showToast, ToastView } = useToast(insets.bottom);
@@ -174,21 +170,10 @@ export default function Index() {
     setFormKey("");
     setFormValue("");
     setFormCategory("");
-    setFormValueVisible(false);
-    setEditingId(null);
   };
 
   const openAddModal = () => {
     resetForm();
-    setModalVisible(true);
-  };
-
-  const openEditModal = (credential: Credential) => {
-    setFormKey(credential.key);
-    setFormValue(credential.value);
-    setFormCategory(credential.category);
-    setFormValueVisible(false);
-    setEditingId(credential.id);
     setModalVisible(true);
   };
 
@@ -207,21 +192,10 @@ export default function Index() {
       return;
     }
 
-    if (editingId) {
-      const updatedCredentials: Credential[] = await CredentialStorage.update({
-        id: editingId,
-        key,
-        value,
-        category,
-      });
-      setCredentials(updatedCredentials);
-      showToast("Credential updated");
-    } else {
-      const toAdd: AddCredential = { key, value, category };
-      const updatedCredentials: Credential[] = await CredentialStorage.add(toAdd);
-      setCredentials(updatedCredentials);
-      showToast("Credential saved");
-    }
+    const toAdd: AddCredential = { key, value, category };
+    const updatedCredentials: Credential[] = await CredentialStorage.add(toAdd);
+    setCredentials(updatedCredentials);
+    showToast("Credential saved");
     closeModal();
   };
 
@@ -238,16 +212,6 @@ export default function Index() {
       },
       { text: "Cancel", style: "cancel" },
     ]);
-  };
-
-  const handleCopyToClipboard = async (text: string, label: string) => {
-    await Clipboard.setStringAsync(text);
-    showToast(`${label} copied`);
-  };
-
-  const toggleReveal = (id: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setRevealedId((current) => (current === id ? "" : id));
   };
 
   const toggleCategory = (category: string) => {
@@ -339,67 +303,32 @@ export default function Index() {
               </Pressable>
 
               {!isCollapsed &&
-                items.map((credential) => {
-                  const revealed = revealedId === credential.id;
-                  return (
-                    <View key={credential.id} style={styles.row}>
-                      <Pressable
-                        style={styles.rowMain}
-                        onPress={() => handleCopyToClipboard(credential.key, "Label")}
-                      >
-                        <Text style={styles.rowKey}>{credential.key}</Text>
-                        <Pressable
-                          style={styles.valueTouch}
-                          onPress={() =>
-                            handleCopyToClipboard(
-                              revealed ? credential.value : credential.value,
-                              "Value"
-                            )
-                          }
-                        >
-                          <Text style={styles.rowValue}>
-                            {revealed ? credential.value : "•".repeat(Math.min(credential.value.length, 12) || 8)}
-                          </Text>
-                        </Pressable>
-                      </Pressable>
-
-                      <View style={styles.rowActions}>
-                        <Pressable
-                          style={styles.iconButton}
-                          onPress={() => toggleReveal(credential.id)}
-                          hitSlop={6}
-                        >
-                          <Ionicons
-                            name={revealed ? "eye-off-outline" : "eye-outline"}
-                            size={17}
-                            color={colors.textSecondary}
-                          />
-                        </Pressable>
-                        <Pressable
-                          style={styles.iconButton}
-                          onPress={() => handleCopyToClipboard(credential.value, "Value")}
-                          hitSlop={6}
-                        >
-                          <Ionicons name="copy-outline" size={17} color={colors.textSecondary} />
-                        </Pressable>
-                        <Pressable
-                          style={styles.iconButton}
-                          onPress={() => openEditModal(credential)}
-                          hitSlop={6}
-                        >
-                          <Ionicons name="create-outline" size={17} color={colors.accent} />
-                        </Pressable>
-                        <Pressable
-                          style={styles.iconButton}
-                          onPress={() => handleDeleteCredential(credential.id, credential.key)}
-                          hitSlop={6}
-                        >
-                          <Ionicons name="trash-outline" size={17} color={colors.danger} />
-                        </Pressable>
-                      </View>
+                items.map((credential) => (
+                  <View key={credential.id} style={styles.row}>
+                    <View style={styles.rowMain}>
+                      <Text style={styles.rowKey}>{credential.key}</Text>
+                      <Text style={styles.rowValue}>
+                        {"•".repeat(Math.min(credential.value.length, 12) || 8)}
+                      </Text>
                     </View>
-                  );
-                })}
+
+                    <View style={styles.rowActions}>
+                      <Pressable
+                        style={styles.iconButton}
+                        onPress={() =>
+                          handleDeleteCredential(credential.id, credential.key)
+                        }
+                        hitSlop={6}
+                      >
+                        <Ionicons
+                          name="trash-outline"
+                          size={17}
+                          color={colors.danger}
+                        />
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
             </View>
           );
         })}
@@ -417,7 +346,7 @@ export default function Index() {
         <Ionicons name="add" size={26} color={colors.bg} />
       </Pressable>
 
-      {/* Add / edit modal */}
+      {/* Add credential modal */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closeModal} />
@@ -432,9 +361,7 @@ export default function Index() {
             ]}
           >
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>
-              {editingId ? "Edit credential" : "Add credential"}
-            </Text>
+            <Text style={styles.modalTitle}>Add credential</Text>
 
             <ScrollView
               style={{ flexShrink: 1 }}
@@ -451,27 +378,14 @@ export default function Index() {
             />
 
             <Text style={styles.fieldLabel}>Value</Text>
-            <View style={styles.fieldValueRow}>
-              <TextInput
-                value={formValue}
-                onChangeText={setFormValue}
-                placeholder="Password, PIN, or key"
-                placeholderTextColor={colors.textTertiary}
-                secureTextEntry={!formValueVisible}
-                style={[styles.fieldInput, { flex: 1, fontFamily: mono, marginBottom: 0 }]}
-              />
-              <Pressable
-                style={styles.fieldValueToggle}
-                onPress={() => setFormValueVisible((v) => !v)}
-                hitSlop={8}
-              >
-                <Ionicons
-                  name={formValueVisible ? "eye-off-outline" : "eye-outline"}
-                  size={18}
-                  color={colors.textSecondary}
-                />
-              </Pressable>
-            </View>
+            <TextInput
+              value={formValue}
+              onChangeText={setFormValue}
+              placeholder="Password, PIN, or key"
+              placeholderTextColor={colors.textTertiary}
+              secureTextEntry
+              style={[styles.fieldInput, { fontFamily: mono }]}
+            />
 
             <Text style={styles.fieldLabel}>Category</Text>
             <TextInput
@@ -506,9 +420,7 @@ export default function Index() {
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </Pressable>
               <Pressable style={styles.primaryButton} onPress={handleSubmit}>
-                <Text style={styles.primaryButtonText}>
-                  {editingId ? "Save changes" : "Save credential"}
-                </Text>
+                <Text style={styles.primaryButtonText}>Save credential</Text>
               </Pressable>
             </View>
           </Animated.View>

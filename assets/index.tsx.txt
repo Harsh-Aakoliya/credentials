@@ -1,0 +1,729 @@
+import React, { useEffect, useState, useRef } from "react";
+import {
+    View,
+    Text,
+    FlatList,
+    TouchableOpacity,
+    StyleSheet,
+    Dimensions,
+    ActivityIndicator,
+    Pressable,
+    Animated,
+} from "react-native";
+import {
+    VideoView,
+    useVideoPlayer,
+} from "expo-video";
+
+const { height, width } = Dimensions.get("window");
+const SERVER = "http://127.0.0.1:3000";
+
+/*
+ * ---------------------------------------------------
+ * CACHE MANAGER
+ * ---------------------------------------------------
+ */
+class URLCache {
+    private cache: Map<string, string> = new Map();
+
+    get(instagramUrl: string): string | null {
+        return this.cache.get(instagramUrl) || null;
+    }
+
+    set(instagramUrl: string, videoUrl: string): void {
+        this.cache.set(instagramUrl, videoUrl);
+    }
+
+    has(instagramUrl: string): boolean {
+        return this.cache.has(instagramUrl);
+    }
+
+    clear(): void {
+        this.cache.clear();
+    }
+
+    size(): number {
+        return this.cache.size;
+    }
+}
+
+const urlCache = new URLCache();
+
+/*
+ * ---------------------------------------------------
+ * DATA
+ * ---------------------------------------------------
+ */
+const data = {
+  "all":[
+    "https://www.instagram.com/p/DbTP2M2iiaf/",
+    "https://www.instagram.com/p/Db4fzj5tYLV/",
+    "https://www.instagram.com/p/DcsMNUXiDaY/",
+    "https://www.instagram.com/p/DcsRRtAClMB/",
+    "https://www.instagram.com/p/DcIhc9Dzwje/",
+    "https://www.instagram.com/p/Dcu4I4-oxQw/",
+    "https://www.instagram.com/p/DcvZXi3Mng2/",
+    "https://www.instagram.com/p/Dcu9n6vtzzI/",
+    "https://www.instagram.com/p/DcuAI8iNxcQ/",
+    "https://www.instagram.com/p/DcoOO_DxrYk/",
+    "https://www.instagram.com/p/DctKLRoRo_s/",
+    "https://www.instagram.com/p/DctNOV5pqIv/",
+    "https://www.instagram.com/p/DaF8yegyndw/",
+    "https://www.instagram.com/p/Da2QBVEsg6m/",
+    "https://www.instagram.com/p/DcqefbcpDbp/",
+    "https://www.instagram.com/p/DcrCr4fBBUd/",
+    "https://www.instagram.com/p/DTFhd2nDVAv/",
+    "https://www.instagram.com/p/DcrAau1jDTc/",
+    "https://www.instagram.com/p/Dcn0vzyBui3/",
+    "https://www.instagram.com/p/DcoNsijMG3T/",
+    "https://www.instagram.com/p/DclW5OnmHTd/",
+    "https://www.instagram.com/p/DcoPJbesMY_/",
+    "https://www.instagram.com/p/DcowSPdvhMT/",
+    "https://www.instagram.com/p/DcLUaa0z9l_/",
+    "https://www.instagram.com/p/Dcn98fESn3I/",
+    "https://www.instagram.com/p/DWjM3FnBnS7/",
+    "https://www.instagram.com/p/DbYYY4Yo5sT/",
+    "https://www.instagram.com/p/DcP1z1Tin_0/",
+    "https://www.instagram.com/p/Db-YB-esIM3/",
+    "https://www.instagram.com/p/DclXBJjyZZy/",
+    "https://www.instagram.com/p/DcjBTicKfvh/",
+    "https://www.instagram.com/p/DclpjjES4t5/",
+    "https://www.instagram.com/p/DclgZvfiLu9/",
+    "https://www.instagram.com/p/DcglMBeIzg4/",
+    "https://www.instagram.com/p/DclrmIuoMTH/",
+    "https://www.instagram.com/p/Dcl2OwotgY_/",
+    "https://www.instagram.com/p/DcjZ1wyBYyr/",
+    "https://www.instagram.com/p/DckSfEeNAT2/",
+    "https://www.instagram.com/p/DcOToXSyvkh/",
+    "https://www.instagram.com/p/DcIME6CMki4/",
+    "https://www.instagram.com/p/Dci2cMwCK_U/",
+    "https://www.instagram.com/p/DcicSq5Pd46/",
+    "https://www.instagram.com/p/DcjgHFWz20R/",
+    "https://www.instagram.com/p/Dci10CtK_d_/",
+    "https://www.instagram.com/p/DcgQLqhMILF/",
+    "https://www.instagram.com/p/DchUyIGOvha/",
+    "https://www.instagram.com/p/DcRMhBgx0iT/",
+    "https://www.instagram.com/p/DceZJFNs6h4/",
+    "https://www.instagram.com/p/DcI2L_ZBNzO/",
+    "https://www.instagram.com/p/Dciw4fXBLFa/",
+    "https://www.instagram.com/p/DcgSkk0v3PG/",
+    "https://www.instagram.com/p/DbzPDoxo96D/",
+    "https://www.instagram.com/p/DceSBimNtlu/",
+    "https://www.instagram.com/p/DccxLZ4IgOi/",
+    "https://www.instagram.com/p/DZ75hEUhiaC/",
+    "https://www.instagram.com/p/DcbmQqxsdQu/",
+    "https://www.instagram.com/p/DY2Y_59hH6H/",
+    "https://www.instagram.com/p/DcOPvWKy6Ev/",
+    "https://www.instagram.com/p/DcOtyk4C5YB/",
+    "https://www.instagram.com/p/DcJDrRJia9X/",
+    "https://www.instagram.com/p/DcBO_wRzhzP/",
+    "https://www.instagram.com/p/DcYDg94xqbY/",
+    "https://www.instagram.com/p/Db9ywQWPUXD/",
+    "https://www.instagram.com/p/DcL4OjEJaz9/",
+    "https://www.instagram.com/p/DcWE6y1B9jg/",
+    "https://www.instagram.com/p/DcVtUtZPa02/",
+    "https://www.instagram.com/p/Db54H3mIFqh/",
+    "https://www.instagram.com/p/DcXaFDuTP-I/",
+    "https://www.instagram.com/p/DboQPxIzK3K/",
+    "https://www.instagram.com/p/DcJ9w6mTdfD/",
+    "https://www.instagram.com/p/DZM08f4NZWy/",
+    "https://www.instagram.com/p/DcVR_UrhkmO/",
+    "https://www.instagram.com/p/DcTXkrtMF4p/",
+    "https://www.instagram.com/p/DcTDJsEzNlI/",
+    "https://www.instagram.com/p/DcBOSjutCKn/",
+    "https://www.instagram.com/p/DbiE4rHMZKa/",
+    "https://www.instagram.com/p/DcULpQ6SdXm/",
+    "https://www.instagram.com/p/DcT0jrImbcE/",
+    "https://www.instagram.com/p/DcUJaRsgFLC/",
+    "https://www.instagram.com/p/DcQ2g_VmPos/",
+    "https://www.instagram.com/p/DcRIsnmBTZs/",
+    "https://www.instagram.com/p/DcEMkbaMVTZ/",
+    "https://www.instagram.com/p/Dbcn2IUDAYQ/",
+    "https://www.instagram.com/p/DcKg7Bxjvj0/",
+    "https://www.instagram.com/p/Db-N_SIKGNL/",
+    "https://www.instagram.com/p/DbBKrVfCk-X/",
+    "https://www.instagram.com/p/DcPipc1KP-B/",
+    "https://www.instagram.com/p/DcOueABslRh/",
+    "https://www.instagram.com/p/DcJE9IxI1yO/",
+    "https://www.instagram.com/p/DcOZyf6Pztx/",
+    "https://www.instagram.com/p/Dbn18KLMIZw/",
+    "https://www.instagram.com/p/DasienbMey6/",
+    "https://www.instagram.com/p/DbiBwdQjfyJ/",
+    "https://www.instagram.com/p/DcLoqFhjYkF/",
+    "https://www.instagram.com/p/Dbl3eqYTvXe/",
+    "https://www.instagram.com/p/DcI8MYNNDxM/",
+    "https://www.instagram.com/p/DcKCd4UKNr1/",
+    "https://www.instagram.com/p/Dby7XmOTEHn/",
+    "https://www.instagram.com/p/DcHKhVyvB0c/",
+
+  ],
+    girls: [
+        "https://www.instagram.com/p/DcLUaa0z9l_/",
+        "https://www.instagram.com/p/DclgZvfiLu9/",
+        "https://www.instagram.com/p/DcglMBeIzg4/",
+        "https://www.instagram.com/p/DclrmIuoMTH/"
+    ],
+    coding: [
+        "https://www.instagram.com/p/DcLUaa0z9l_/",
+        "https://www.instagram.com/p/DTFhd2nDVAv/?img_index=1"
+    ],
+};
+
+type Category = keyof typeof data;
+
+type Reel = {
+    instagramUrl: string;
+    videoUrl: string;
+};
+
+/*
+ * ---------------------------------------------------
+ * VIDEO COMPONENT WITH TAP TO PLAY/PAUSE
+ * ---------------------------------------------------
+ */
+function ReelVideo({
+    videoUrl,
+    active,
+    onProgress,
+}: {
+    videoUrl: string;
+    active: boolean;
+    onProgress?: (progress: number, duration: number) => void;
+}) {
+    const [isPlaying, setIsPlaying] = useState(true);
+    const player = useVideoPlayer(videoUrl, (player) => {
+        player.loop = true;
+    });
+
+    // Handle play/pause based on active state
+    useEffect(() => {
+        if (active && isPlaying) {
+            player.play();
+        } else {
+            player.pause();
+        }
+    }, [active, isPlaying, player]);
+
+    // Listen to player status for progress
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (player && onProgress) {
+                const currentTime = player.currentTime || 0;
+                const duration = player.duration || 0;
+                onProgress(currentTime, duration);
+            }
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [player, onProgress]);
+
+    const togglePlayPause = () => {
+        setIsPlaying((prev) => !prev);
+    };
+
+    return (
+        <Pressable onPress={togglePlayPause} style={styles.videoContainer}>
+            <VideoView
+                player={player}
+                style={styles.video}
+                contentFit="cover"
+                nativeControls={false}
+            />
+            
+            {/* Play/Pause Indicator */}
+            {!isPlaying && (
+                <View style={styles.pauseOverlay}>
+                    <View style={styles.pauseIcon}>
+                        <Text style={styles.pauseIconText}>▶</Text>
+                    </View>
+                </View>
+            )}
+        </Pressable>
+    );
+}
+
+/*
+ * ---------------------------------------------------
+ * TIMELINE COMPONENT
+ * ---------------------------------------------------
+ */
+function Timeline({
+    progress,
+    duration,
+    onSeek,
+}: {
+    progress: number;
+    duration: number;
+    onSeek?: (time: number) => void;
+}) {
+    const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
+
+    return (
+        <View style={styles.timelineContainer}>
+            <View style={styles.timelineBackground}>
+                <View
+                    style={[
+                        styles.timelineProgress,
+                        { width: `${progressPercent}%` },
+                    ]}
+                />
+            </View>
+            <View style={styles.timeTextContainer}>
+                <Text style={styles.timeText}>
+                    {formatTime(progress)} / {formatTime(duration)}
+                </Text>
+            </View>
+        </View>
+    );
+}
+
+function formatTime(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+/*
+ * ---------------------------------------------------
+ * MAIN APP
+ * ---------------------------------------------------
+ */
+export default function Index() {
+    const [category, setCategory] = useState<Category | null>(null);
+    const [reels, setReels] = useState<Reel[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [progress, setProgress] = useState(0);
+    const [duration, setDuration] = useState(0);
+
+    /*
+     * ---------------------------------------------------
+     * RESOLVE INSTAGRAM URLS WITH CACHING
+     * ---------------------------------------------------
+     */
+    const loadReels = async (selected: Category) => {
+        setLoading(true);
+        setReels([]);
+        setCurrentIndex(0);
+
+        const urls = data[selected];
+        const resolved: Reel[] = [];
+
+        for (const instagramUrl of urls) {
+            try {
+                // Check cache first
+                if (urlCache.has(instagramUrl)) {
+                    const cachedVideoUrl = urlCache.get(instagramUrl);
+                    console.log("✓ Cache hit:", instagramUrl);
+                    
+                    if (cachedVideoUrl) {
+                        resolved.push({
+                            instagramUrl,
+                            videoUrl: cachedVideoUrl,
+                        });
+                    }
+                    continue;
+                }
+
+                // Not in cache, fetch from server
+                console.log("Resolving:", instagramUrl);
+
+                const response = await fetch(
+                    `${SERVER}/resolve?url=${encodeURIComponent(instagramUrl)}`
+                );
+
+                if (!response.ok) {
+                    console.log("Server returned:", response.status);
+                    continue;
+                }
+
+                const result = await response.json();
+                console.log("Resolve response:", result);
+
+                if (result.videoUrl) {
+                    // Store in cache
+                    urlCache.set(instagramUrl, result.videoUrl);
+                    console.log("✓ Cached:", instagramUrl);
+
+                    resolved.push({
+                        instagramUrl,
+                        videoUrl: result.videoUrl,
+                    });
+                }
+            } catch (error) {
+                console.log("Failed to resolve:", instagramUrl, error);
+            }
+        }
+
+        console.log(`Cache size: ${urlCache.size()} entries`);
+        setReels(resolved);
+        setLoading(false);
+    };
+
+    /*
+     * ---------------------------------------------------
+     * OPEN CATEGORY
+     * ---------------------------------------------------
+     */
+    const openCategory = (selected: Category) => {
+        setCategory(selected);
+        loadReels(selected);
+    };
+
+    /*
+     * ---------------------------------------------------
+     * HANDLE VIDEO PROGRESS
+     * ---------------------------------------------------
+     */
+    const handleProgress = (currentTime: number, totalDuration: number) => {
+        setProgress(currentTime);
+        setDuration(totalDuration);
+    };
+
+    /*
+     * ---------------------------------------------------
+     * CATEGORY SCREEN
+     * ---------------------------------------------------
+     */
+    if (!category) {
+        return (
+            <View style={styles.home}>
+                <Text style={styles.title}>My Reels</Text>
+                
+                <View style={styles.cacheInfo}>
+                    <Text style={styles.cacheText}>
+                        📦 Cached videos: {urlCache.size()}
+                    </Text>
+                    {urlCache.size() > 0 && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                urlCache.clear();
+                                console.log("Cache cleared");
+                            }}
+                        >
+                            <Text style={styles.clearCache}>Clear Cache</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {(Object.keys(data) as Category[]).map((item) => (
+                    <TouchableOpacity
+                        key={item}
+                        style={styles.category}
+                        onPress={() => openCategory(item)}
+                    >
+                        <Text style={styles.categoryTitle}>
+                            {item.toUpperCase()}
+                        </Text>
+                        <Text style={styles.categoryCount}>
+                            {data[item].length} reels
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+        );
+    }
+
+    /*
+     * ---------------------------------------------------
+     * LOADING SCREEN
+     * ---------------------------------------------------
+     */
+    if (loading) {
+        return (
+            <View style={styles.loading}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.loadingText}>Loading reels...</Text>
+                <TouchableOpacity
+                    style={styles.loadingBack}
+                    onPress={() => setCategory(null)}
+                >
+                    <Text style={styles.backText}>← Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    /*
+     * ---------------------------------------------------
+     * FEED
+     * ---------------------------------------------------
+     */
+    return (
+        <View style={styles.feed}>
+            <FlatList
+                data={reels}
+                keyExtractor={(item) => item.instagramUrl}
+                pagingEnabled
+                showsVerticalScrollIndicator={false}
+                decelerationRate="fast"
+                snapToInterval={height}
+                snapToAlignment="start"
+                onMomentumScrollEnd={(event) => {
+                    const index = Math.round(
+                        event.nativeEvent.contentOffset.y / height
+                    );
+                    setCurrentIndex(index);
+                    setProgress(0);
+                    setDuration(0);
+                }}
+                renderItem={({ item, index }) => (
+                    <View style={styles.reelContainer}>
+                        <ReelVideo
+                            videoUrl={item.videoUrl}
+                            active={index === currentIndex}
+                            onProgress={
+                                index === currentIndex
+                                    ? handleProgress
+                                    : undefined
+                            }
+                        />
+
+                        {/* Back button */}
+                        <Pressable
+                            style={styles.backButton}
+                            onPress={() => setCategory(null)}
+                        >
+                            <Text style={styles.backArrow}>←</Text>
+                        </Pressable>
+
+                        {/* Category label */}
+                        <View style={styles.categoryLabel}>
+                            <Text style={styles.categoryLabelText}>
+                                {category}
+                            </Text>
+                        </View>
+
+                        {/* Timeline */}
+                        {index === currentIndex && (
+                            <Timeline progress={progress} duration={duration} />
+                        )}
+
+                        {/* Reel counter */}
+                        <View style={styles.reelCounter}>
+                            <Text style={styles.reelCounterText}>
+                                {index + 1} / {reels.length}
+                            </Text>
+                        </View>
+                    </View>
+                )}
+            />
+
+            {reels.length === 0 && (
+                <View style={styles.empty}>
+                    <Text style={styles.emptyText}>
+                        No playable reels found
+                    </Text>
+                    <TouchableOpacity onPress={() => setCategory(null)}>
+                        <Text style={styles.goBack}>← Go back</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+        </View>
+    );
+}
+
+/*
+ * ---------------------------------------------------
+ * STYLES
+ * ---------------------------------------------------
+ */
+const styles = StyleSheet.create({
+    home: {
+        flex: 1,
+        backgroundColor: "#000",
+        padding: 20,
+        paddingTop: 80,
+    },
+    title: {
+        color: "#fff",
+        fontSize: 34,
+        fontWeight: "700",
+        marginBottom: 20,
+    },
+    cacheInfo: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: "#1a1a1a",
+        padding: 15,
+        borderRadius: 12,
+        marginBottom: 20,
+    },
+    cacheText: {
+        color: "#fff",
+        fontSize: 14,
+    },
+    clearCache: {
+        color: "#ff6b6b",
+        fontSize: 14,
+        fontWeight: "600",
+    },
+    category: {
+        backgroundColor: "#181818",
+        borderRadius: 16,
+        padding: 22,
+        marginBottom: 15,
+    },
+    categoryTitle: {
+        color: "#fff",
+        fontSize: 20,
+        fontWeight: "600",
+    },
+    categoryCount: {
+        color: "#999",
+        fontSize: 14,
+        marginTop: 6,
+    },
+    loading: {
+        flex: 1,
+        backgroundColor: "#000",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    loadingText: {
+        color: "#fff",
+        marginTop: 15,
+        fontSize: 16,
+    },
+    loadingBack: {
+        position: "absolute",
+        top: 50,
+        left: 20,
+        backgroundColor: "#222",
+        paddingHorizontal: 18,
+        paddingVertical: 12,
+        borderRadius: 30,
+    },
+    feed: {
+        flex: 1,
+        backgroundColor: "#000",
+    },
+    reelContainer: {
+        width,
+        height,
+        backgroundColor: "#000",
+    },
+    videoContainer: {
+        width,
+        height,
+    },
+    video: {
+        width,
+        height,
+    },
+    pauseOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0,0,0,0.3)",
+    },
+    pauseIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: "rgba(255,255,255,0.9)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    pauseIconText: {
+        fontSize: 32,
+        color: "#000",
+        marginLeft: 5,
+    },
+    backButton: {
+        position: "absolute",
+        top: 55,
+        left: 20,
+        width: 55,
+        height: 55,
+        borderRadius: 30,
+        backgroundColor: "rgba(0,0,0,0.65)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    backArrow: {
+        color: "#fff",
+        fontSize: 32,
+    },
+    categoryLabel: {
+        position: "absolute",
+        top: 55,
+        right: 20,
+        backgroundColor: "rgba(0,0,0,0.6)",
+        paddingHorizontal: 15,
+        paddingVertical: 8,
+        borderRadius: 20,
+    },
+    categoryLabelText: {
+        color: "#fff",
+        fontSize: 15,
+        fontWeight: "600",
+    },
+    timelineContainer: {
+        position: "absolute",
+        bottom: 40,
+        left: 20,
+        right: 20,
+    },
+    timelineBackground: {
+        height: 3,
+        backgroundColor: "rgba(255,255,255,0.3)",
+        borderRadius: 2,
+        overflow: "hidden",
+    },
+    timelineProgress: {
+        height: "100%",
+        backgroundColor: "#fff",
+    },
+    timeTextContainer: {
+        marginTop: 8,
+        alignItems: "center",
+    },
+    timeText: {
+        color: "#fff",
+        fontSize: 12,
+        fontWeight: "600",
+        backgroundColor: "rgba(0,0,0,0.6)",
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 10,
+    },
+    reelCounter: {
+        position: "absolute",
+        bottom: 80,
+        right: 20,
+        backgroundColor: "rgba(0,0,0,0.6)",
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 15,
+    },
+    reelCounterText: {
+        color: "#fff",
+        fontSize: 14,
+        fontWeight: "600",
+    },
+    empty: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "#000",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    emptyText: {
+        color: "#fff",
+        fontSize: 18,
+    },
+    goBack: {
+        color: "#6c7cff",
+        fontSize: 18,
+        marginTop: 20,
+    },
+    backText: {
+        color: "#fff",
+        fontSize: 16,
+    },
+});
